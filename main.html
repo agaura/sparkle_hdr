@@ -9,7 +9,7 @@
 <body>
   <main class="app">
     <h1>Iridescent Sparkle Demo</h1>
-    <p class="subtitle">Use sliders for glint controls. Drag the canvas to rotate the object, and drag with right click to change light direction.</p>
+    <p class="subtitle">Use sliders for glint controls. Drag the canvas to rotate the object, and drag with right click to change light direction. Scroll on canvas to zoom.</p>
 
     <section class="control-panel" aria-label="Sparkle controls">
       <section class="controls">
@@ -29,10 +29,10 @@
         </label>
         <label class="control" for="shininessSlider">
           <div class="control-head">
-            <span>Shininess Scale</span>
+            <span>Shininess</span>
             <output id="shininessValue" for="shininessSlider">1.00</output>
           </div>
-          <input id="shininessSlider" type="range" min="0" max="8" step="0.01" value="1.0" />
+          <input id="shininessSlider" type="range" min="0" max="2" step="0.01" value="1.0" />
         </label>
       </section>
       <div class="toggle-row">

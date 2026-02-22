@@ -18,7 +18,7 @@ body {
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   font-family: "Avenir Next", "Segoe UI", sans-serif;
@@ -142,7 +142,27 @@ h1 {
 }
 
 @media (max-width: 700px) {
+  body {
+    display: block;
+    min-height: 100svh;
+    padding: 0;
+  }
+
+  .app {
+    width: 100vw;
+    min-height: 100svh;
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+    grid-template-rows: auto auto auto 1fr;
+    gap: 8px;
+  }
+
   .controls {
     grid-template-columns: 1fr;
+  }
+
+  .canvas-shell {
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: auto;
   }
 }
