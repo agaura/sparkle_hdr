@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iridescent Sparkle Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>Iridescent Sparkle Demo</h1>
+    <p class="subtitle">Use sliders for glint controls. Drag the canvas to rotate the object, and drag with right click to change light direction.</p>
+
+    <section class="control-panel" aria-label="Sparkle controls">
+      <section class="controls">
+        <label class="control" for="densitySlider">
+          <div class="control-head">
+            <span>Glint Density</span>
+            <output id="densityValue" for="densitySlider">0.700</output>
+          </div>
+          <input id="densitySlider" type="range" min="0" max="1" step="0.001" value="0.7" />
+        </label>
+        <label class="control" for="roughnessSlider">
+          <div class="control-head">
+            <span>Roughness</span>
+            <output id="roughnessValue" for="roughnessSlider">0.300</output>
+          </div>
+          <input id="roughnessSlider" type="range" min="0" max="1" step="0.001" value="0.3" />
+        </label>
+        <label class="control" for="shininessSlider">
+          <div class="control-head">
+            <span>Shininess Scale</span>
+            <output id="shininessValue" for="shininessSlider">1.00</output>
+          </div>
+          <input id="shininessSlider" type="range" min="0" max="8" step="0.01" value="1.0" />
+        </label>
+      </section>
+      <div class="toggle-row">
+        <label class="toggle" for="autoRotateToggle">
+          <input id="autoRotateToggle" type="checkbox" checked />
+          <span>Auto Torus</span>
+        </label>
+        <label class="toggle" for="autoLightRotateToggle">
+          <input id="autoLightRotateToggle" type="checkbox" checked />
+          <span>Auto Light</span>
+        </label>
+      </div>
+    </section>
+
+    <div class="canvas-shell">
+      <canvas id="sparkleCanvas" aria-label="Sparkle Object HDR canvas"></canvas>
+      <div id="status" class="status">Initializing WebGPU…</div>
+    </div>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
