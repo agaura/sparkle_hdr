@@ -609,7 +609,8 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
     if (ndot < 0.01) {
       reflectance /= 1.5;
     }
-    col = reflectance * max(ndot, 0.1) * max(lcolorUnit * 0.75, lcolor2 * 4.) * shininess + lcolor * (1./4. + pow(ndot, 2.)) * 4.;
+    let idealColor = lcolorUnit;
+    col = reflectance * max(ndot, 0.1) * (lcolorUnit * 0.75 + lcolor2 * 4.) * shininess + lcolor * (1./4. + pow(ndot, 2.)) * 4.;
   }
 
   let linear = max(col, vec3<f32>(0.0));
