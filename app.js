@@ -6,10 +6,16 @@ const densityValueEl = document.getElementById('densityValue');
 const roughnessValueEl = document.getElementById('roughnessValue');
 const shininessSlider = document.getElementById('shininessSlider');
 const shininessValueEl = document.getElementById('shininessValue');
+const luminanceSlider = document.getElementById('luminanceSlider');
+const chromaSlider = document.getElementById('chromaSlider');
+const hueSlider = document.getElementById('hueSlider');
+const luminanceValueEl = document.getElementById('luminanceValue');
+const chromaValueEl = document.getElementById('chromaValue');
+const hueValueEl = document.getElementById('hueValue');
 const autoRotateToggle = document.getElementById('autoRotateToggle');
 const autoLightRotateToggle = document.getElementById('autoLightRotateToggle');
 
-if (!canvas || !statusEl || !densitySlider || !roughnessSlider || !densityValueEl || !roughnessValueEl || !shininessSlider || !shininessValueEl || !autoRotateToggle || !autoLightRotateToggle) {
+if (!canvas || !statusEl || !densitySlider || !roughnessSlider || !densityValueEl || !roughnessValueEl || !shininessSlider || !shininessValueEl || !luminanceSlider || !chromaSlider || !hueSlider || !luminanceValueEl || !chromaValueEl || !hueValueEl || !autoRotateToggle || !autoLightRotateToggle) {
   throw new Error('Missing required DOM elements.');
 }
 
@@ -100,6 +106,8 @@ struct Uniforms {
   zoom_scale: f32,
   light_rotation: vec2<f32>,
   auto_light_yaw: f32,
+  _pad0: f32,
+  oklch: vec3<f32>,
   _pad1: f32,
 };
 
@@ -111,11 +119,45 @@ const microfacet_roughness: f32 = 0.01;
 const pixel_filter_size: f32 = 0.7;
 const pi: f32 = 3.14159265358979;
 
+const LINEAR_SRGB_TO_LINEAR_P3: mat3x3<f32> = mat3x3<f32>(
+  vec3<f32>(0.82246210, 0.03319419, 0.01708263),
+  vec3<f32>(0.17753790, 0.96680581, 0.07239744),
+  vec3<f32>(0.00000000, 0.00000000, 0.91051993)
+);
+
 fn srgb_transfer_function(a: f32) -> f32 {
   if (a <= 0.0031308) {
     return 12.92 * a;
   }
   return 1.055 * pow(a, 1.0 / 2.4) - 0.055;
+}
+
+fn linearSRGBToLinearP3(ls: vec3<f32>) -> vec3<f32> {
+  return LINEAR_SRGB_TO_LINEAR_P3 * ls;
+}
+
+fn oklab_to_linear_srgb(lab: vec3<f32>) -> vec3<f32> {
+  let l_ = lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z;
+  let m_ = lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z;
+  let s_ = lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z;
+
+  let l = l_ * l_ * l_;
+  let m = m_ * m_ * m_;
+  let s = s_ * s_ * s_;
+
+  return vec3<f32>(
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s
+  );
+}
+
+fn oklch_to_p3(oklch: vec3<f32>) -> vec3<f32> {
+  let hue = oklch.z * pi / 180.0;
+  let a = oklch.y * cos(hue);
+  let b = oklch.y * sin(hue);
+  let linearSRGB = oklab_to_linear_srgb(vec3<f32>(oklch.x, a, b));
+  return linearSRGBToLinearP3(linearSRGB);
 }
 
 struct VSOut {
@@ -422,11 +464,8 @@ fn torusFrame(pos: vec3<f32>, tor: vec2<f32>) -> mat3x3<f32> {
 }
 
 fn G1_GGX(n: vec3<f32>, _h: vec3<f32>, v: vec3<f32>, alpha: f32) -> f32 {
-  let ndotv = dot(n, v);
-  if (ndotv < 0.0) {
-    return 0.0;
-  }
-  let ndotv_sq = ndotv * ndotv;
+  let ndotv = abs(dot(n, v));
+  let ndotv_sq = max(ndotv * ndotv, 1e-6);
   let tan_theta_sq = (1.0 - ndotv_sq) / ndotv_sq;
   let Gamma = -0.5 + 0.5 * sqrt(1.0 + alpha * alpha * tan_theta_sq);
   return 1.0 / (1.0 + Gamma);
@@ -437,8 +476,15 @@ fn G_GGX(n: vec3<f32>, h: vec3<f32>, light_in: vec3<f32>, light_out: vec3<f32>, 
 }
 
 fn brdf(alpha: f32, view: vec3<f32>, light: vec3<f32>, base: mat3x3<f32>, uv: vec2<f32>, uv_J: mat2x2<f32>) -> f32 {
-  let h_world = normalize(view + light);
-  let h_local = transpose(base) * h_world;
+  let h_sum = view + light;
+  let h_len2 = dot(h_sum, h_sum);
+  if (h_len2 <= 1e-8) {
+    return 0.0;
+  }
+  let h_world = h_sum * inverseSqrt(h_len2);
+  let h_local_raw = transpose(base) * h_world;
+  // Stabilize NDF mapping by forcing half-vector to local +Z hemisphere.
+  let h_local = normalize(vec3<f32>(h_local_raw.x, h_local_raw.y, abs(h_local_raw.z)));
 
   var density = uniforms.glint_density;
   if (density == 0.0) {
@@ -448,8 +494,9 @@ fn brdf(alpha: f32, view: vec3<f32>, light: vec3<f32>, base: mat3x3<f32>, uv: ve
   let D = ndf(h_local, alpha, microfacet_roughness, uv, uv_J, 8e5 * pow(10.0, density * 6.0 - 2.0), pixel_filter_size);
   let F = mix(pow(1.0 - dot(h_world, light), 5.0), 1.0, 0.96);
   let G = G_GGX(base[2], h_world, light, view, alpha);
-
-  return D * F * G / (4.0 * dot(base[2], view) * dot(base[2], light));
+  let nDotV = max(abs(dot(base[2], view)), 1e-4);
+  let nDotL = max(abs(dot(base[2], light)), 1e-4);
+  return D * F * G / (4.0 * nDotV * nDotL);
 }
 
 @fragment
@@ -535,16 +582,14 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
     }
 
     let alpha = 0.2 + roughness * 0.8;
-    let shininess = 16.0 * uniforms.glint_density * pow(uniforms.roughness, 1.0) * pow(uniforms.shininess_scale, 2.2);
+    let shininess = 20.0 * uniforms.glint_density * pow(uniforms.roughness, 1.0) * pow(uniforms.shininess_scale, 2.2);
 
-    var lcolor = vec3<f32>(0.1, 0.15, 0.4) * 3.0;
-    var ndotl = dot(base[2], light);
-    if (ndotl < 0.0) {
-      ndotl = -ndotl;
-      light = -light;
-      //lcolor = vec3<f32>(0.1, 0.15, 0.4) * 2.0;
-    }
-    let reflectance = brdf(alpha, -rd_obj, light, base, uv, uv_J);
+    var lcolor = max(oklch_to_p3(uniforms.oklch), vec3<f32>(0.0)) / 5.;
+    let ndotl = abs(dot(base[2], light));
+    var reflectance = 0.5 * (
+      brdf(alpha, -rd_obj, light, base, uv, uv_J) +
+      brdf(alpha, -rd_obj, -light, base, uv, uv_J)
+    );
 
     let ndot = clamp(ndotl, 0.0, 1.0);
     let uvCell = floor(uv * 2048.0);
@@ -559,7 +604,12 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
     );
     let lcolor2 = xyz_to_p3 * xyz;
 
-    col = reflectance * ndotl * mix(lcolor, lcolor2 * 4., 0.75) * shininess + lcolor * 0.01 * (1. + ndotl);
+    let lcolorLen = length(lcolor);
+    let lcolorUnit = select(vec3<f32>(0.0), lcolor / lcolorLen, lcolorLen > 1e-6);
+    if (ndot < 0.01) {
+      reflectance /= 1.5;
+    }
+    col = reflectance * max(ndot, 0.1) * max(lcolorUnit * 0.75, lcolor2 * 4.) * shininess + lcolor * (1./4. + pow(ndot, 2.)) * 4.;
   }
 
   let linear = max(col, vec3<f32>(0.0));
@@ -590,7 +640,7 @@ const pipeline = device.createRenderPipeline({
   },
 });
 
-const uniformData = new Float32Array(14);
+const uniformData = new Float32Array(20);
 const uniformBuffer = device.createBuffer({
   size: uniformData.byteLength,
   usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -610,6 +660,9 @@ let roughnessControl = Number.parseFloat(roughnessSlider.value);
 let autoRotateEnabled = autoRotateToggle.checked;
 let autoLightRotateEnabled = autoLightRotateToggle.checked;
 let shininessScale = Number.parseFloat(shininessSlider.value);
+let oklchLuminance = Number.parseFloat(luminanceSlider.value);
+let oklchChroma = Number.parseFloat(chromaSlider.value);
+let oklchHue = Number.parseFloat(hueSlider.value);
 let zoomScale = 6.;
 let autoYawAngle = 0;
 let autoLightYawAngle = 0;
@@ -617,11 +670,17 @@ let previousFrameMs = null;
 if (!Number.isFinite(densityControl)) densityControl = 0.7;
 if (!Number.isFinite(roughnessControl)) roughnessControl = 0.3;
 if (!Number.isFinite(shininessScale)) shininessScale = 1.0;
+if (!Number.isFinite(oklchLuminance)) oklchLuminance = 0.44;
+if (!Number.isFinite(oklchChroma)) oklchChroma = 0.11;
+if (!Number.isFinite(oklchHue)) oklchHue = 270.0;
 
 function updateControlLabels() {
   densityValueEl.textContent = densityControl.toFixed(3);
   roughnessValueEl.textContent = roughnessControl.toFixed(3);
   shininessValueEl.textContent = shininessScale.toFixed(2);
+  luminanceValueEl.textContent = oklchLuminance.toFixed(3);
+  chromaValueEl.textContent = oklchChroma.toFixed(3);
+  hueValueEl.textContent = `${Math.round(oklchHue)}°`;
 }
 
 densitySlider.addEventListener('input', () => {
@@ -642,6 +701,27 @@ shininessSlider.addEventListener('input', () => {
   const v = Number.parseFloat(shininessSlider.value);
   if (!Number.isFinite(v)) return;
   shininessScale = Math.max(0, v);
+  updateControlLabels();
+});
+
+luminanceSlider.addEventListener('input', () => {
+  const v = Number.parseFloat(luminanceSlider.value);
+  if (!Number.isFinite(v)) return;
+  oklchLuminance = Math.max(0, Math.min(1.0, v));
+  updateControlLabels();
+});
+
+chromaSlider.addEventListener('input', () => {
+  const v = Number.parseFloat(chromaSlider.value);
+  if (!Number.isFinite(v)) return;
+  oklchChroma = Math.max(0, Math.min(0.45, v));
+  updateControlLabels();
+});
+
+hueSlider.addEventListener('input', () => {
+  const v = Number.parseFloat(hueSlider.value);
+  if (!Number.isFinite(v)) return;
+  oklchHue = ((v % 360) + 360) % 360;
   updateControlLabels();
 });
 
@@ -769,6 +849,12 @@ function renderFrame(timeMs) {
   uniformData[11] = lightRotation.yaw;
   uniformData[12] = autoLightYawAngle;
   uniformData[13] = 0;
+  uniformData[14] = 0;
+  uniformData[15] = 0;
+  uniformData[16] = oklchLuminance;
+  uniformData[17] = oklchChroma;
+  uniformData[18] = oklchHue;
+  uniformData[19] = 0;
 
   device.queue.writeBuffer(uniformBuffer, 0, uniformData);
 

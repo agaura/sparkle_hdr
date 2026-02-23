@@ -34,6 +34,27 @@
           </div>
           <input id="shininessSlider" type="range" min="0" max="2" step="0.01" value="1.0" />
         </label>
+        <label class="control" for="luminanceSlider">
+          <div class="control-head">
+            <span>Luminance</span>
+            <output id="luminanceValue" for="luminanceSlider">0.440</output>
+          </div>
+          <input id="luminanceSlider" type="range" min="0" max="1.0" step="0.001" value="0.440" />
+        </label>
+        <label class="control" for="chromaSlider">
+          <div class="control-head">
+            <span>Chroma</span>
+            <output id="chromaValue" for="chromaSlider">0.110</output>
+          </div>
+          <input id="chromaSlider" type="range" min="0" max="0.45" step="0.001" value="0.110" />
+        </label>
+        <label class="control" for="hueSlider">
+          <div class="control-head">
+            <span>Hue</span>
+            <output id="hueValue" for="hueSlider">270°</output>
+          </div>
+          <input id="hueSlider" type="range" min="0" max="360" step="1" value="270" />
+        </label>
       </section>
       <div class="toggle-row">
         <label class="toggle" for="autoRotateToggle">
