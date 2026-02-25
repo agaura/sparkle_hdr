@@ -129,16 +129,15 @@ h1 {
 }
 
 .status {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
+  display: inline-block;
+  justify-self: start;
+  margin-top: 2px;
   padding: 6px 10px;
   border-radius: 8px;
   background: rgba(7, 11, 16, 0.7);
   border: 1px solid rgba(85, 103, 124, 0.4);
   color: var(--muted);
   font-size: 0.8rem;
-  pointer-events: none;
 }
 
 @media (max-width: 700px) {

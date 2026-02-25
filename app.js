@@ -610,7 +610,7 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
       reflectance /= 1.5;
     }
     let idealColor = lcolorUnit;
-    col = reflectance * max(ndot, 0.1) * (lcolorUnit * 0.75 + lcolor2 * 4.) * shininess + lcolor * (1./4. + pow(ndot, 2.)) * 4.;
+    col = reflectance * max(ndot, 0.1) * (lcolorUnit * 0.75 + lcolor2 * 4.) * shininess + lcolor * (1./2. + pow(ndot, 2.)) * 2.;
   }
 
   let linear = max(col, vec3<f32>(0.0));
@@ -664,16 +664,16 @@ let shininessScale = Number.parseFloat(shininessSlider.value);
 let oklchLuminance = Number.parseFloat(luminanceSlider.value);
 let oklchChroma = Number.parseFloat(chromaSlider.value);
 let oklchHue = Number.parseFloat(hueSlider.value);
-let zoomScale = 6.;
+let zoomScale = 5.;
 let autoYawAngle = 0;
 let autoLightYawAngle = 0;
 let previousFrameMs = null;
-if (!Number.isFinite(densityControl)) densityControl = 0.7;
-if (!Number.isFinite(roughnessControl)) roughnessControl = 0.3;
+if (!Number.isFinite(densityControl)) densityControl = 0.75;
+if (!Number.isFinite(roughnessControl)) roughnessControl = 0.09;
 if (!Number.isFinite(shininessScale)) shininessScale = 1.0;
-if (!Number.isFinite(oklchLuminance)) oklchLuminance = 0.44;
-if (!Number.isFinite(oklchChroma)) oklchChroma = 0.11;
-if (!Number.isFinite(oklchHue)) oklchHue = 270.0;
+if (!Number.isFinite(oklchLuminance)) oklchLuminance = 1.0;
+if (!Number.isFinite(oklchChroma)) oklchChroma = 0.075;
+if (!Number.isFinite(oklchHue)) oklchHue = 265.0;
 
 function updateControlLabels() {
   densityValueEl.textContent = densityControl.toFixed(3);
