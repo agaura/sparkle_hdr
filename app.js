@@ -94,6 +94,8 @@ try {
 
 const shader = device.createShaderModule({
   label: 'sparkle-object-shader',
+  // Adapted from https://www.shadertoy.com/view/tcdGDl by Pauli Kemppinen, Loïs Paulin,
+  // Théo Thonat, Jean-Marc Thiery, Jaakko Lehtinen, and Tamy Boubekeur.
   code: /* wgsl */ `
 struct Uniforms {
   resolution: vec2<f32>,
